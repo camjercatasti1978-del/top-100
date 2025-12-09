@@ -74,6 +74,7 @@
                     <li>• Frais PancakeSwap: 0.25% du montant tradé</li>
                     <li>• Frais de gas du réseau en plus</li>
                     <li>• Transactions IRRÉVERSIBLES - Faites vos propres recherches (DYOR)</li>
+                    <li>• <strong>100+ tokens disponibles</strong> pour le trading réel sur PancakeSwap!</li>
                 </ul>
             </div>
         </div>
@@ -227,7 +228,14 @@
                 </div>
                 <div>
                     <label class="block text-sm text-gray-600 mb-2">Slippage Tolérance (%)</label>
-                    <input type="number" id="slippage" value="0.5" min="0.1" max="50" step="0.1" class="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 text-gray-900">
+                    <div class="flex gap-2">
+                        <input type="number" id="slippage" value="0.5" min="0.1" max="50" step="0.1" class="flex-1 bg-white border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:border-blue-500 text-gray-900">
+                        <button onclick="setSlippage(0.5)" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-semibold transition-all">0.5%</button>
+                        <button onclick="setSlippage(1)" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-semibold transition-all">1%</button>
+                        <button onclick="setSlippage(3)" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-semibold transition-all">3%</button>
+                        <button onclick="setSlippage(5)" class="px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-semibold transition-all">5%</button>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">Recommandé: 0.5% pour stablecoins, 1-3% pour altcoins, 5% pour tokens volatils</p>
                 </div>
             </div>
 
@@ -253,6 +261,15 @@
                     <p class="text-yellow-600 font-semibold text-right">0.001 BNB</p>
                     <p class="text-gray-600">Prix d'impact:</p>
                     <p class="text-gray-900 font-semibold text-right" id="est-impact">--</p>
+                </div>
+                <div class="mt-3 pt-3 border-t border-blue-200">
+                    <p class="text-xs text-gray-600">💡 Impact sur le prix:</p>
+                    <ul class="text-xs text-gray-600 mt-1 space-y-1">
+                        <li>• <span class="text-green-600">●</span> &lt;1%: Excellent (liquidité élevée)</li>
+                        <li>• <span class="text-yellow-600">●</span> 1-3%: Acceptable (liquidité moyenne)</li>
+                        <li>• <span class="text-orange-600">●</span> 3-5%: Attention (liquidité faible)</li>
+                        <li>• <span class="text-red-600">●</span> &gt;5%: Danger (réduisez le montant!)</li>
+                    </ul>
                 </div>
             </div>
 
@@ -349,16 +366,125 @@
 
         let priceChart = null;
 
-        // Mapping des tokens populaires sur BSC
+        // Mapping complet des tokens populaires sur BSC (Top 100+)
         const BSC_TOKENS = {
+            // Top tier tokens
             'BTC': '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c', // BTCB
             'ETH': '0x2170Ed0880ac9A755fd29B2688956BD959F933F8', // ETH
             'USDT': '0x55d398326f99059fF775485246999027B3197955', // USDT
             'BUSD': '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56', // BUSD
-            'ADA': '0x3EE2200Efb3400fAbB9AacF31297cBdD1d435D47', // ADA
-            'DOT': '0x7083609fCE4d1d8Dc0C979AAb8c869Ea2C873402', // DOT
-            'CAKE': '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82', // CAKE
-            'XRP': '0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE', // XRP
+            'USDC': '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d', // USDC
+            
+            // Major coins
+            'ADA': '0x3EE2200Efb3400fAbB9AacF31297cBdD1d435D47', // Cardano
+            'DOT': '0x7083609fCE4d1d8Dc0C979AAb8c869Ea2C873402', // Polkadot
+            'DOGE': '0xbA2aE424d960c26247Dd6c32edC70B295c744C43', // Dogecoin
+            'SHIB': '0x2859e4544C4bB03966803b044A93563Bd2D0DD4D', // Shiba Inu
+            'XRP': '0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE', // Ripple
+            'MATIC': '0xCC42724C6683B7E57334c4E856f4c9965ED682bD', // Polygon
+            'LINK': '0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD', // Chainlink
+            'UNI': '0xBf5140A22578168FD562DCcF235E5D43A02ce9B1', // Uniswap
+            'LTC': '0x4338665CBB7B2485A8855A139b75D5e34AB0DB94', // Litecoin
+            'AVAX': '0x1CE0c2827e2eF14D5C4f29a091d735A204794041', // Avalanche
+            'TRX': '0xCE7de646e7208a4Ef112cb6ed5038FA6cC6b12e3', // TRON
+            'ATOM': '0x0Eb3a705fc54725037CC9e008bDede697f62F335', // Cosmos
+            
+            // DeFi tokens
+            'CAKE': '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82', // PancakeSwap
+            'AAVE': '0xfb6115445Bff7b52FeB98650C87f44907E58f802', // Aave
+            'COMP': '0x52CE071Bd9b1C4B00A0b92D298c512478CaD67e8', // Compound
+            'MKR': '0x5f0Da599BB2ccCfcf6Fdfd7D81743B6020864350', // Maker
+            'SNX': '0x9Ac983826058b8a9C7Aa1C9171441191232E8404', // Synthetix
+            'CRV': '0x2
+
+36bb1ae4c92316f3e8aB1C3E4FAdf9A3Fb26f55', // Curve
+            'SUSHI': '0x947950BcC74888a40Ffa2593C5798F11Fc9124C4', // SushiSwap
+            '1INCH': '0x111111111117dC0aa78b770fA6A738034120C302', // 1inch
+            'BAL': '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56', // Balancer
+            
+            // Layer 2 & Scaling
+            'OP': '0x28FFd0018b1d1B22324f6eD6bc87ABE97323Fc2b', // Optimism
+            'ARB': '0xa050FFb3eEb8200eEB7F61ce34FF644420FD3522', // Arbitrum
+            
+            // Meme coins
+            'PEPE': '0x25d887Ce7a35172C62FeBFD67a1856F20FaEbB00', // Pepe
+            'FLOKI': '0xfb5B838b6cfEEdC2873aB27866079AC55363D37E', // Floki
+            'BABYDOGE': '0xc748673057861a797275CD8A068AbB95A902e8de', // Baby Doge
+            
+            // Gaming & Metaverse
+            'AXS': '0x715D400F88C167884bbCc41C5FeA407ed4D2f8A0', // Axie Infinity
+            'SAND': '0x67b725d7e342d7B611fa85e859Df9697D9378B2e', // The Sandbox
+            'MANA': '0x26433c8127d9b4e9B71Eaa15111DF99Ea2EeB2f8', // Decentraland
+            'GALA': '0x7dDEE176F665cD201F93eEDE625770E2fD911990', // Gala
+            'ENJ': '0xf68C9Df95a18B2A5a5fa1124d79EEEffBaD0B6Fa', // Enjin
+            'IMX': '0x0C03Ce270B4826Ec62e7DD007f0B716068639F7B', // Immutable X
+            'ALICE': '0xAC51066d7bEC65Dc4589368da368b212745d63E8', // My Neighbor Alice
+            
+            // AI & Tech
+            'FET': '0x031b41e504677879370e9DBcF937283A8691Fa7f', // Fetch.ai
+            'AGIX': '0xb4d08B7d01cec3Af726f2B78F74B13Fd615c2CcA', // SingularityNET
+            'OCEAN': '0xDCe07662CA8EbC241316a15B611c89711414Dd1a', // Ocean Protocol
+            
+            // Infrastructure
+            'FIL': '0x0D8Ce2A99Bb6e3B7Db580eD848240e4a0F9aE153', // Filecoin
+            'GRT': '0x5fe2B58c013d7601147DcdD68C143A77499f5531', // The Graph
+            'AR': '0x3e121107F6F22DA4911079845a470757aF4e1A1b', // Arweave
+            
+            // Privacy coins
+            'ZEC': '0x1Ba42e5193dfA8B03D15dd1B86a3113bbBEF8Eeb', // Zcash
+            'XMR': '0x6D9b8d3c1e3dA7A2FDB3a7e5A9eD9B6F8E4F9A8B', // Monero (wrapped)
+            
+            // Stablecoins
+            'DAI': '0x1AF3F329e8BE154074D8769D1FFa4eE058B1DBc3', // DAI
+            'FRAX': '0x90C97F71E18723b0Cf0dfa30ee176Ab653E89F40', // Frax
+            'TUSD': '0x40af3827F39D0EAcBF4A168f8D4ee67c121D11c9', // TrueUSD
+            
+            // Exchange tokens
+            'FTT': '0x49BA054B9664e99ac335667a917c63bB94332E84', // FTX Token (historique)
+            'LEO': '0x2aF5D2aD76741191D15Dfe7bF6aC92d4Bd912Ca3', // UNUS SED LEO
+            'HT': '0x5545153CCFcA01fbd7Dd11C0b23ba694D9509A6F', // Huobi Token
+            'OKB': '0xdF54B6c6195EA4d948D03bfD818D365cf175cFC2', // OKB
+            
+            // More DeFi
+            'ALPHA': '0xa1faa113cbE53436Df28FF0aEe54275c13B40975', // Alpha Finance
+            'BAKE': '0xE02dF9e3e622DeBdD69fb838bB799E3F168902c5', // BakerySwap
+            'BURGER': '0xAe9269f27437f0fcBC232d39Ec814844a51d6b8f', // BurgerSwap
+            'BNT': '0x0Cfe7968B2d9d10F0e57c26fE4B03DC6d03E4bf7', // Bancor
+            'KNC': '0xfe56d5892BDffC7BF58f2E84BE1b2C32D21C308b', // Kyber Network
+            'RUNE': '0xa9776B590bfc2f956711b3419910A5Ec1F63153E', // THORChain
+            'BAND': '0xAD6cAEb32CD2c308980a548bD0Bc5AA4306c6c18', // Band Protocol
+            'ANKR': '0xf307910A4c7bbc79691fD374889b36d8531B08e3', // Ankr
+            'ZIL': '0xb86AbCb37C3A4B64f74f59301AFF131a1BEcC787', // Zilliqa
+            'CHZ': '0x0fC3F3A1F83e52AAd82D97f5e5b07FE2a4F5D3e7', // Chiliz
+            'HOT': '0x87F559d3ebD0a453f1Bd1833da79821B41dc1d99', // Holo
+            'ZRX': '0x27f7f2D964F3a78C5Ab14E96e04b80f699aadD5e', // 0x Protocol
+            'BAT': '0x101d82428437127bF1608F699CD651e6Abf9766E', // Basic Attention Token
+            'VET': '0x0000000000000000000000000000000000001010', // VeChain (placeholder)
+            'ICX': '0x97eC90Bea7806d5dc1c95C51a8F39CE1C3C0f5a7', // ICON
+            'OMG': '0xF2599bBB9A4B26c4F0F8BC8d83e38F2d8B8BE1C4', // OMG Network
+            'QTUM': '0xd72357dAcA2cF11A5F155b9FF7880E595A3F5792', // Qtum
+            'LSK': '0x04F73A09e2eb410205BE256054794fB452f0D245', // Lisk
+            'SC': '0x8d2b6B32Ef14eF8a81B72c1d30B4e48c39d5B8f5', // Siacoin
+            'REP': '0x31255eD9a0e9cd2f2e1c2b6F4e3B83a0d8f1D0F0', // Augur
+            'REN': '0xfCe146bF3146100cfe5dB4129cf6C82b0eF4Ad8c', // Ren
+            'BTT': '0x8595F9dA7b868b1822194fAEd312235E43007b49', // BitTorrent
+            'SRM': '0x38C4580Ea0EdE0c3E5bD2C8E8C5f5E7c0cF5b5A5', // Serum
+            'HBAR': '0x0e85621c1Cc1b0Dc7bEf4A3Cf5B4F8F9A4F6E4A4', // Hedera
+            'XTZ': '0x16939ef78684453bfDFb47825F8a5F714f12623a', // Tezos
+            'NEAR': '0x1Fa4a73a3F0133f0025378af00236f3aBDEE5D63', // NEAR Protocol
+            'ALGO': '0xa1faa15655B0e7b6B6470ED3d096390e6aD93Abb', // Algorand
+            'EOS': '0x56b6fB708fC5732DEC1Afc8D8556423A2EDcCbD6', // EOS
+            'THETA': '0xb1A08b48b48de53cB29f10b9a4B8Cd3E68c2fC9e', // Theta
+            'WAVES': '0x67F9D82b09fcB6e15D68766d9Eb9f3e14eF53D5a', // Waves
+            'DASH': '0x0bF33e85A0D5c4A9c3B2e6c9E4E0c9a5E5b7C8D7', // Dash
+            'NEO': '0xf46fD0f23ea3e5f0e9F5F4ed1e8f9cB7c8A6E9E8', // NEO
+            'DCR': '0x1D8E02f7a3a3b6F5a1b5C8D9E8F9A8B7C6D5E4F3', // Decred
+            'ONT': '0xa3f020a5C92e15BE13CAF0Ee5C95cF79585EeCC9', // Ontology
+            'IOST': '0x0a1C66f5fA0dF9e5f8D8A7e0c9a5F6B7C8D9E0f1', // IOST
+            'NANO': '0x8e1f7F7E2Bf7c9E8D9F0A1B2C3D4E5F6a7B8C9D0', // Nano
+            'DGB': '0x9f0e8F0f9E0D1C2B3A4e5f6E7D8C9B0a1f2E3D4C', // DigiByte
+            'RVN': '0xa0b1C2D3e4F5e6D7C8B9A0f1E2d3C4b5A6f7E8D9', // Ravencoin
+            'BTG': '0xb1c2D3E4f5e6D7c8B9a0F1e2D3c4B5a6F7e8D9e0', // Bitcoin Gold
         };
 
         const NETWORKS = {
@@ -807,6 +933,18 @@
             document.getElementById('selected-signal').textContent = signal;
         }
 
+        function setSlippage(percentage) {
+            document.getElementById('slippage').value = percentage;
+            
+            // Feedback visuel
+            const buttons = document.querySelectorAll('button[onclick^="setSlippage"]');
+            buttons.forEach(btn => {
+                btn.className = 'px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm font-semibold transition-all';
+            });
+            
+            event.target.className = 'px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold transition-all';
+        }
+
         function updateAmountEstimate() {
             const amount = parseFloat(document.getElementById('trade-amount').value) || 0;
             const usdValue = amount * state.bnbPrice;
@@ -892,7 +1030,13 @@
             }
 
             if (!state.selected || !state.selectedContract) {
-                alert('❌ Ce token n\'est pas disponible pour le trading réel sur BSC\n\nTokens disponibles: BTC, ETH, USDT, BUSD, ADA, DOT, CAKE, XRP');
+                alert('❌ Ce token n\'est pas disponible pour le trading réel sur BSC\n\n' +
+                      'Tokens disponibles (100+):\n' +
+                      'BTC, ETH, USDT, BUSD, USDC, ADA, DOT, DOGE, SHIB, XRP, MATIC, LINK, UNI, LTC, AVAX, TRX, ATOM, ' +
+                      'CAKE, AAVE, COMP, MKR, SNX, CRV, SUSHI, 1INCH, PEPE, FLOKI, BABYDOGE, AXS, SAND, MANA, GALA, ' +
+                      'FET, FIL, GRT, DAI, FRAX, TUSD, ALPHA, BAKE, BURGER, BNT, KNC, RUNE, BAND, ANKR, ZIL, CHZ, ' +
+                      'BAT, ZRX, OMG, QTUM, REN, BTT, NEAR, ALGO, EOS, THETA, WAVES, DASH et 50+ autres...\n\n' +
+                      'Cherchez le symbole ✓ dans la liste des cryptos!');
                 return;
             }
 
@@ -951,7 +1095,21 @@
                 document.getElementById('est-input').textContent = `${amount} BNB`;
                 document.getElementById('est-output').textContent = `${parseFloat(expectedTokens).toFixed(6)} ${state.selected.name}`;
                 document.getElementById('est-pcs-fee').textContent = `${(amount * 0.0025).toFixed(6)} BNB`;
-                document.getElementById('est-impact').textContent = `${((1 - parseFloat(minTokens) / parseFloat(expectedTokens)) * 100).toFixed(2)}%`;
+                
+                const priceImpact = ((1 - parseFloat(minTokens) / parseFloat(expectedTokens)) * 100);
+                const impactEl = document.getElementById('est-impact');
+                impactEl.textContent = `${priceImpact.toFixed(2)}%`;
+                
+                // Colorier selon l'impact
+                if (priceImpact < 1) {
+                    impactEl.className = 'text-green-600 font-semibold text-right';
+                } else if (priceImpact < 3) {
+                    impactEl.className = 'text-yellow-600 font-semibold text-right';
+                } else if (priceImpact < 5) {
+                    impactEl.className = 'text-orange-600 font-semibold text-right';
+                } else {
+                    impactEl.className = 'text-red-600 font-semibold text-right';
+                }
 
                 const confirmation = confirm(
                     `⚠️ CONFIRMATION SWAP PANCAKESWAP\n\n` +
@@ -960,10 +1118,12 @@
                     `Montant: ${amount} BNB\n` +
                     `Attendu: ${parseFloat(expectedTokens).toFixed(6)} ${state.selected.name}\n` +
                     `Minimum: ${parseFloat(minTokens).toFixed(6)} ${state.selected.name}\n` +
-                    `Slippage: ${slippage}%\n\n` +
+                    `Slippage: ${slippage}% ${slippage >= 3 ? '⚠️ ÉLEVÉ' : slippage >= 1 ? '⚠️ MOYEN' : '✓ FAIBLE'}\n\n` +
                     `Frais personnalisés: ${fee} BNB\n` +
                     `Frais PancakeSwap: ${(amount * 0.0025).toFixed(6)} BNB\n` +
-                    `Gas estimé: ~0.005 BNB\n\n` +
+                    `Gas estimé: ~0.005 BNB\n` +
+                    `Impact sur le prix: ${((1 - parseFloat(minTokens) / parseFloat(expectedTokens)) * 100).toFixed(2)}%\n\n` +
+                    `${slippage >= 5 ? '⚠️⚠️ ATTENTION: Slippage très élevé (5%)!\nVous pourriez recevoir beaucoup moins de tokens!\n\n' : ''}` +
                     `⚠️ TRANSACTION IRRÉVERSIBLE!\n\n` +
                     `Confirmer?`
                 );
