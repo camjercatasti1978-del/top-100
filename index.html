@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crypto Trading Dashboard - PancakeSwap DEX</title>
+    <title>Crypto Trading Dashboard - PancakeSwap DEX avec Portfolio</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
@@ -39,6 +39,13 @@
         @keyframes spin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
+        }
+        .position-card {
+            transition: all 0.3s ease;
+        }
+        .position-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
         }
     </style>
 </head>
@@ -98,6 +105,54 @@
                 <div class="p-4 bg-green-50 border border-green-200 rounded-lg">
                     <p class="text-sm text-gray-600 mb-1">Solde BNB</p>
                     <p class="text-lg font-bold text-gray-900" id="wallet-balance">--</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Portfolio Dashboard -->
+        <div class="card rounded-2xl p-6 mb-8">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-gray-900">💼 Tableau de Bord Portfolio</h2>
+                <button onclick="refreshPortfolio()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition-all shadow-md">
+                    🔄 Actualiser
+                </button>
+            </div>
+
+            <!-- Portfolio Stats -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div class="p-4 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg">
+                    <p class="text-sm text-gray-600 mb-1">Valeur Totale Portfolio</p>
+                    <p class="text-2xl font-bold text-blue-600" id="portfolio-value">$0.00</p>
+                    <p class="text-xs text-gray-500 mt-1" id="portfolio-bnb">0 BNB</p>
+                </div>
+                <div class="p-4 bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg">
+                    <p class="text-sm text-gray-600 mb-1">Profit/Perte Total</p>
+                    <p class="text-2xl font-bold" id="portfolio-pnl">$0.00</p>
+                    <p class="text-xs font-semibold mt-1" id="portfolio-pnl-percent">0%</p>
+                </div>
+                <div class="p-4 bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg">
+                    <p class="text-sm text-gray-600 mb-1">Positions Actives</p>
+                    <p class="text-2xl font-bold text-purple-600" id="portfolio-positions">0</p>
+                    <p class="text-xs text-gray-500 mt-1">tokens différents</p>
+                </div>
+                <div class="p-4 bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-lg">
+                    <p class="text-sm text-gray-600 mb-1">Meilleure Performance</p>
+                    <p class="text-lg font-bold text-orange-600" id="portfolio-best">--</p>
+                    <p class="text-xs text-gray-500 mt-1" id="portfolio-best-pnl">--</p>
+                </div>
+            </div>
+
+            <!-- Portfolio Chart -->
+            <div class="mb-6">
+                <h3 class="text-lg font-bold mb-3 text-gray-900">📈 Évolution du Portfolio</h3>
+                <canvas id="portfolioChart" height="80"></canvas>
+            </div>
+
+            <!-- Positions List -->
+            <div>
+                <h3 class="text-lg font-bold mb-3 text-gray-900">📋 Positions Détaillées</h3>
+                <div id="positions-list" class="space-y-3">
+                    <p class="text-sm text-gray-500 text-center py-8">Aucune position active</p>
                 </div>
             </div>
         </div>
@@ -262,15 +317,6 @@
                     <p class="text-gray-600">Prix d'impact:</p>
                     <p class="text-gray-900 font-semibold text-right" id="est-impact">--</p>
                 </div>
-                <div class="mt-3 pt-3 border-t border-blue-200">
-                    <p class="text-xs text-gray-600">💡 Impact sur le prix:</p>
-                    <ul class="text-xs text-gray-600 mt-1 space-y-1">
-                        <li>• <span class="text-green-600">●</span> &lt;1%: Excellent (liquidité élevée)</li>
-                        <li>• <span class="text-yellow-600">●</span> 1-3%: Acceptable (liquidité moyenne)</li>
-                        <li>• <span class="text-orange-600">●</span> 3-5%: Attention (liquidité faible)</li>
-                        <li>• <span class="text-red-600">●</span> &gt;5%: Danger (réduisez le montant!)</li>
-                    </ul>
-                </div>
             </div>
 
             <div id="sim-trades" class="mt-6 space-y-2">
@@ -315,14 +361,13 @@
 
     <script>
         // Configuration PancakeSwap
-        const PANCAKESWAP_ROUTER = '0x10ED43C718714eb63d5aA57B78B54704E256024E'; // PancakeSwap V2 Router
-        const WBNB_ADDRESS = '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c'; // Wrapped BNB
-        const BUSD_ADDRESS = '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56'; // BUSD
+        const PANCAKESWAP_ROUTER = '0x10ED43C718714eb63d5aA57B78B54704E256024E';
+        const WBNB_ADDRESS = '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c';
+        const BUSD_ADDRESS = '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56';
         const FEE_RECIPIENT = '0x7C08b7E9862bd3826c0de1741a2d26770C39903d';
-        const CUSTOM_FEE = '0.001'; // 0.001 BNB
-        const BSC_CHAIN_ID = '0x38'; // 56 en decimal
+        const CUSTOM_FEE = '0.001';
+        const BSC_CHAIN_ID = '0x38';
 
-        // ABI PancakeSwap Router (fonctions essentielles)
         const ROUTER_ABI = [
             'function swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline) external payable returns (uint[] memory amounts)',
             'function swapExactTokensForETH(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external returns (uint[] memory amounts)',
@@ -330,7 +375,6 @@
             'function WETH() external pure returns (address)'
         ];
 
-        // ABI ERC20 (pour approval)
         const ERC20_ABI = [
             'function approve(address spender, uint256 amount) public returns (bool)',
             'function allowance(address owner, address spender) public view returns (uint256)',
@@ -361,128 +405,61 @@
                 provider: null,
                 signer: null,
                 type: null
+            },
+            portfolio: {
+                history: [],
+                priceUpdates: {}
             }
         };
 
         let priceChart = null;
+        let portfolioChart = null;
 
-        // Mapping complet des tokens populaires sur BSC (Top 100+)
         const BSC_TOKENS = {
-            // Top tier tokens
-            'BTC': '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c', // BTCB
-            'ETH': '0x2170Ed0880ac9A755fd29B2688956BD959F933F8', // ETH
-            'USDT': '0x55d398326f99059fF775485246999027B3197955', // USDT
-            'BUSD': '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56', // BUSD
-            'USDC': '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d', // USDC
-            
-            // Major coins
-            'ADA': '0x3EE2200Efb3400fAbB9AacF31297cBdD1d435D47', // Cardano
-            'DOT': '0x7083609fCE4d1d8Dc0C979AAb8c869Ea2C873402', // Polkadot
-            'DOGE': '0xbA2aE424d960c26247Dd6c32edC70B295c744C43', // Dogecoin
-            'SHIB': '0x2859e4544C4bB03966803b044A93563Bd2D0DD4D', // Shiba Inu
-            'XRP': '0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE', // Ripple
-            'MATIC': '0xCC42724C6683B7E57334c4E856f4c9965ED682bD', // Polygon
-            'LINK': '0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD', // Chainlink
-            'UNI': '0xBf5140A22578168FD562DCcF235E5D43A02ce9B1', // Uniswap
-            'LTC': '0x4338665CBB7B2485A8855A139b75D5e34AB0DB94', // Litecoin
-            'AVAX': '0x1CE0c2827e2eF14D5C4f29a091d735A204794041', // Avalanche
-            'TRX': '0xCE7de646e7208a4Ef112cb6ed5038FA6cC6b12e3', // TRON
-            'ATOM': '0x0Eb3a705fc54725037CC9e008bDede697f62F335', // Cosmos
-            
-            // DeFi tokens
-            'CAKE': '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82', // PancakeSwap
-            'AAVE': '0xfb6115445Bff7b52FeB98650C87f44907E58f802', // Aave
-            'COMP': '0x52CE071Bd9b1C4B00A0b92D298c512478CaD67e8', // Compound
-            'MKR': '0x5f0Da599BB2ccCfcf6Fdfd7D81743B6020864350', // Maker
-            'SNX': '0x9Ac983826058b8a9C7Aa1C9171441191232E8404', // Synthetix
-            'CRV': '0x236bb1ae4c92316f3e8aB1C3E4FAdf9A3Fb26f55', // Curve
-            'SUSHI': '0x947950BcC74888a40Ffa2593C5798F11Fc9124C4', // SushiSwap
-            '1INCH': '0x111111111117dC0aa78b770fA6A738034120C302', // 1inch
-            'BAL': '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56', // Balancer
-            
-            // Layer 2 & Scaling
-            'OP': '0x28FFd0018b1d1B22324f6eD6bc87ABE97323Fc2b', // Optimism
-            'ARB': '0xa050FFb3eEb8200eEB7F61ce34FF644420FD3522', // Arbitrum
-            
-            // Meme coins
-            'PEPE': '0x25d887Ce7a35172C62FeBFD67a1856F20FaEbB00', // Pepe
-            'FLOKI': '0xfb5B838b6cfEEdC2873aB27866079AC55363D37E', // Floki
-            'BABYDOGE': '0xc748673057861a797275CD8A068AbB95A902e8de', // Baby Doge
-            
-            // Gaming & Metaverse
-            'AXS': '0x715D400F88C167884bbCc41C5FeA407ed4D2f8A0', // Axie Infinity
-            'SAND': '0x67b725d7e342d7B611fa85e859Df9697D9378B2e', // The Sandbox
-            'MANA': '0x26433c8127d9b4e9B71Eaa15111DF99Ea2EeB2f8', // Decentraland
-            'GALA': '0x7dDEE176F665cD201F93eEDE625770E2fD911990', // Gala
-            'ENJ': '0xf68C9Df95a18B2A5a5fa1124d79EEEffBaD0B6Fa', // Enjin
-            'IMX': '0x0C03Ce270B4826Ec62e7DD007f0B716068639F7B', // Immutable X
-            'ALICE': '0xAC51066d7bEC65Dc4589368da368b212745d63E8', // My Neighbor Alice
-            
-            // AI & Tech
-            'FET': '0x031b41e504677879370e9DBcF937283A8691Fa7f', // Fetch.ai
-            'AGIX': '0xb4d08B7d01cec3Af726f2B78F74B13Fd615c2CcA', // SingularityNET
-            'OCEAN': '0xDCe07662CA8EbC241316a15B611c89711414Dd1a', // Ocean Protocol
-            
-            // Infrastructure
-            'FIL': '0x0D8Ce2A99Bb6e3B7Db580eD848240e4a0F9aE153', // Filecoin
-            'GRT': '0x5fe2B58c013d7601147DcdD68C143A77499f5531', // The Graph
-            'AR': '0x3e121107F6F22DA4911079845a470757aF4e1A1b', // Arweave
-            
-            // Privacy coins
-            'ZEC': '0x1Ba42e5193dfA8B03D15dd1B86a3113bbBEF8Eeb', // Zcash
-            'XMR': '0x6D9b8d3c1e3dA7A2FDB3a7e5A9eD9B6F8E4F9A8B', // Monero (wrapped)
-            
-            // Stablecoins
-            'DAI': '0x1AF3F329e8BE154074D8769D1FFa4eE058B1DBc3', // DAI
-            'FRAX': '0x90C97F71E18723b0Cf0dfa30ee176Ab653E89F40', // Frax
-            'TUSD': '0x40af3827F39D0EAcBF4A168f8D4ee67c121D11c9', // TrueUSD
-            
-            // Exchange tokens
-            'FTT': '0x49BA054B9664e99ac335667a917c63bB94332E84', // FTX Token (historique)
-            'LEO': '0x2aF5D2aD76741191D15Dfe7bF6aC92d4Bd912Ca3', // UNUS SED LEO
-            'HT': '0x5545153CCFcA01fbd7Dd11C0b23ba694D9509A6F', // Huobi Token
-            'OKB': '0xdF54B6c6195EA4d948D03bfD818D365cf175cFC2', // OKB
-            
-            // More DeFi
-            'ALPHA': '0xa1faa113cbE53436Df28FF0aEe54275c13B40975', // Alpha Finance
-            'BAKE': '0xE02dF9e3e622DeBdD69fb838bB799E3F168902c5', // BakerySwap
-            'BURGER': '0xAe9269f27437f0fcBC232d39Ec814844a51d6b8f', // BurgerSwap
-            'BNT': '0x0Cfe7968B2d9d10F0e57c26fE4B03DC6d03E4bf7', // Bancor
-            'KNC': '0xfe56d5892BDffC7BF58f2E84BE1b2C32D21C308b', // Kyber Network
-            'RUNE': '0xa9776B590bfc2f956711b3419910A5Ec1F63153E', // THORChain
-            'BAND': '0xAD6cAEb32CD2c308980a548bD0Bc5AA4306c6c18', // Band Protocol
-            'ANKR': '0xf307910A4c7bbc79691fD374889b36d8531B08e3', // Ankr
-            'ZIL': '0xb86AbCb37C3A4B64f74f59301AFF131a1BEcC787', // Zilliqa
-            'CHZ': '0x0fC3F3A1F83e52AAd82D97f5e5b07FE2a4F5D3e7', // Chiliz
-            'HOT': '0x87F559d3ebD0a453f1Bd1833da79821B41dc1d99', // Holo
-            'ZRX': '0x27f7f2D964F3a78C5Ab14E96e04b80f699aadD5e', // 0x Protocol
-            'BAT': '0x101d82428437127bF1608F699CD651e6Abf9766E', // Basic Attention Token
-            'VET': '0x6FDcdfef7c496407cCb0cEC90f9C5Aaa1Cc8D888', // VeChain
-            'ICX': '0x97eC90Bea7806d5dc1c95C51a8F39CE1C3C0f5a7', // ICON
-            'OMG': '0xF2599bBB9A4B26c4F0F8BC8d83e38F2d8B8BE1C4', // OMG Network
-            'QTUM': '0xd72357dAcA2cF11A5F155b9FF7880E595A3F5792', // Qtum
-            'LSK': '0x04F73A09e2eb410205BE256054794fB452f0D245', // Lisk
-            'SC': '0x8d2b6B32Ef14eF8a81B72c1d30B4e48c39d5B8f5', // Siacoin
-            'REP': '0x31255eD9a0e9cd2f2e1c2b6F4e3B83a0d8f1D0F0', // Augur
-            'REN': '0xfCe146bF3146100cfe5dB4129cf6C82b0eF4Ad8c', // Ren
-            'BTT': '0x8595F9dA7b868b1822194fAEd312235E43007b49', // BitTorrent
-            'SRM': '0x38C4580Ea0EdE0c3E5bD2C8E8C5f5E7c0cF5b5A5', // Serum
-            'HBAR': '0x0e85621c1Cc1b0Dc7bEf4A3Cf5B4F8F9A4F6E4A4', // Hedera
-            'XTZ': '0x16939ef78684453bfDFb47825F8a5F714f12623a', // Tezos
-            'NEAR': '0x1Fa4a73a3F0133f0025378af00236f3aBDEE5D63', // NEAR Protocol
-            'ALGO': '0xa1faa15655B0e7b6B6470ED3d096390e6aD93Abb', // Algorand
-            'EOS': '0x56b6fB708fC5732DEC1Afc8D8556423A2EDcCbD6', // EOS
-            'THETA': '0xb1A08b48b48de53cB29f10b9a4B8Cd3E68c2fC9e', // Theta
-            'WAVES': '0x67F9D82b09fcB6e15D68766d9Eb9f3e14eF53D5a', // Waves
-            'DASH': '0x0bF33e85A0D5c4A9c3B2e6c9E4E0c9a5E5b7C8D7', // Dash
-            'NEO': '0xf46fD0f23ea3e5f0e9F5F4ed1e8f9cB7c8A6E9E8', // NEO
-            'DCR': '0x1D8E02f7a3a3b6F5a1b5C8D9E8F9A8B7C6D5E4F3', // Decred
-            'ONT': '0xa3f020a5C92e15BE13CAF0Ee5C95cF79585EeCC9', // Ontology
-            'IOST': '0x0a1C66f5fA0dF9e5f8D8A7e0c9a5F6B7C8D9E0f1', // IOST
-            'NANO': '0x8e1f7F7E2Bf7c9E8D9F0A1B2C3D4E5F6a7B8C9D0', // Nano
-            'DGB': '0x9f0e8F0f9E0D1C2B3A4e5f6E7D8C9B0a1f2E3D4C', // DigiByte
-            'RVN': '0xa0b1C2D3e4F5e6D7C8B9A0f1E2d3C4b5A6f7E8D9', // Ravencoin
-            'BTG': '0xb1c2D3E4f5e6D7c8B9a0F1e2D3c4B5a6F7e8D9e0', // Bitcoin Gold
+            'BTC': '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c',
+            'ETH': '0x2170Ed0880ac9A755fd29B2688956BD959F933F8',
+            'USDT': '0x55d398326f99059fF775485246999027B3197955',
+            'BUSD': '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56',
+            'USDC': '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
+            'ADA': '0x3EE2200Efb3400fAbB9AacF31297cBdD1d435D47',
+            'DOT': '0x7083609fCE4d1d8Dc0C979AAb8c869Ea2C873402',
+            'DOGE': '0xbA2aE424d960c26247Dd6c32edC70B295c744C43',
+            'SHIB': '0x2859e4544C4bB03966803b044A93563Bd2D0DD4D',
+            'XRP': '0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE',
+            'MATIC': '0xCC42724C6683B7E57334c4E856f4c9965ED682bD',
+            'LINK': '0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD',
+            'UNI': '0xBf5140A22578168FD562DCcF235E5D43A02ce9B1',
+            'LTC': '0x4338665CBB7B2485A8855A139b75D5e34AB0DB94',
+            'AVAX': '0x1CE0c2827e2eF14D5C4f29a091d735A204794041',
+            'TRX': '0xCE7de646e7208a4Ef112cb6ed5038FA6cC6b12e3',
+            'ATOM': '0x0Eb3a705fc54725037CC9e008bDede697f62F335',
+            'CAKE': '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82',
+            'AAVE': '0xfb6115445Bff7b52FeB98650C87f44907E58f802',
+            'COMP': '0x52CE071Bd9b1C4B00A0b92D298c512478CaD67e8',
+            'MKR': '0x5f0Da599BB2ccCfcf6Fdfd7D81743B6020864350',
+            'SNX': '0x9Ac983826058b8a9C7Aa1C9171441191232E8404',
+            'CRV': '0x236bb1ae4c92316f3e8aB1C3E4FAdf9A3Fb26f55',
+            'SUSHI': '0x947950BcC74888a40Ffa2593C5798F11Fc9124C4',
+            '1INCH': '0x111111111117dC0aa78b770fA6A738034120C302',
+            'PEPE': '0x25d887Ce7a35172C62FeBFD67a1856F20FaEbB00',
+            'FLOKI': '0xfb5B838b6cfEEdC2873aB27866079AC55363D37E',
+            'AXS': '0x715D400F88C167884bbCc41C5FeA407ed4D2f8A0',
+            'SAND': '0x67b725d7e342d7B611fa85e859Df9697D9378B2e',
+            'MANA': '0x26433c8127d9b4e9B71Eaa15111DF99Ea2EeB2f8',
+            'GALA': '0x7dDEE176F665cD201F93eEDE625770E2fD911990',
+            'FET': '0x031b41e504677879370e9DBcF937283A8691Fa7f',
+            'FIL': '0x0D8Ce2A99Bb6e3B7Db580eD848240e4a0F9aE153',
+            'GRT': '0x5fe2B58c013d7601147DcdD68C143A77499f5531',
+            'DAI': '0x1AF3F329e8BE154074D8769D1FFa4eE058B1DBc3',
+            'FRAX': '0x90C97F71E18723b0Cf0dfa30ee176Ab653E89F40',
+            'ALPHA': '0xa1faa113cbE53436Df28FF0aEe54275c13B40975',
+            'BAKE': '0xE02dF9e3e622DeBdD69fb838bB799E3F168902c5',
+            'BURGER': '0xAe9269f27437f0fcBC232d39Ec814844a51d6b8f',
+            'BNT': '0x0Cfe7968B2d9d10F0e57c26fE4B03DC6d03E4bf7',
+            'KNC': '0xfe56d5892BDffC7BF58f2E84BE1b2C32D21C308b',
+            'RUNE': '0xa9776B590bfc2f956711b3419910A5Ec1F63153E',
+            'BAND': '0xAD6cAEb32CD2c308980a548bD0Bc5AA4306c6c18',
+            'ANKR': '0xf307910A4c7bbc79691fD374889b36d8531B08e3'
         };
 
         const NETWORKS = {
@@ -493,6 +470,235 @@
             '0xfa': 'Fantom'
         };
 
+        // Portfolio Functions
+        function initPortfolioChart() {
+            const ctx = document.getElementById('portfolioChart');
+            portfolioChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Valeur Portfolio ($)',
+                        data: [],
+                        borderColor: '#8b5cf6',
+                        backgroundColor: '#8b5cf620',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#8b5cf6'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { 
+                            display: true,
+                            labels: { color: '#374151' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#6b7280' },
+                            grid: { color: '#e5e7eb' }
+                        },
+                        y: {
+                            ticks: { 
+                                color: '#6b7280',
+                                callback: function(value) {
+                                    return '$' + value.toFixed(2);
+                                }
+                            },
+                            grid: { color: '#e5e7eb' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updatePortfolio() {
+            if (state.simulation.positions.length === 0) {
+                document.getElementById('portfolio-value').textContent = '$0.00';
+                document.getElementById('portfolio-bnb').textContent = '0 BNB';
+                document.getElementById('portfolio-pnl').textContent = '$0.00';
+                document.getElementById('portfolio-pnl-percent').textContent = '0%';
+                document.getElementById('portfolio-positions').textContent = '0';
+                document.getElementById('portfolio-best').textContent = '--';
+                document.getElementById('portfolio-best-pnl').textContent = '--';
+                document.getElementById('positions-list').innerHTML = '<p class="text-sm text-gray-500 text-center py-8">Aucune position active</p>';
+                return;
+            }
+
+            let totalValue = 0;
+            let totalInvested = 0;
+            let positionsData = [];
+
+            state.simulation.positions.forEach(position => {
+                const currentPrice = state.portfolio.priceUpdates[position.symbol] || position.price;
+                const currentValue = position.quantity * currentPrice;
+                const pnl = currentValue - position.amount;
+                const pnlPercent = (pnl / position.amount) * 100;
+
+                totalValue += currentValue;
+                totalInvested += position.amount;
+
+                positionsData.push({
+                    ...position,
+                    currentPrice,
+                    currentValue,
+                    pnl,
+                    pnlPercent
+                });
+            });
+
+            const totalPnl = totalValue - totalInvested;
+            const totalPnlPercent = (totalPnl / totalInvested) * 100;
+
+            // Update stats
+            document.getElementById('portfolio-value').textContent = `$${totalValue.toFixed(2)}`;
+            document.getElementById('portfolio-bnb').textContent = `${(totalValue / state.bnbPrice).toFixed(4)} BNB`;
+            
+            const pnlEl = document.getElementById('portfolio-pnl');
+            pnlEl.textContent = `${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(2)}`;
+            pnlEl.className = totalPnl >= 0 ? 'text-2xl font-bold text-green-600' : 'text-2xl font-bold text-red-600';
+            
+            const pnlPercentEl = document.getElementById('portfolio-pnl-percent');
+            pnlPercentEl.textContent = `${totalPnlPercent >= 0 ? '+' : ''}${totalPnlPercent.toFixed(2)}%`;
+            pnlPercentEl.className = totalPnlPercent >= 0 ? 'text-xs font-semibold mt-1 text-green-600' : 'text-xs font-semibold mt-1 text-red-600';
+
+            document.getElementById('portfolio-positions').textContent = positionsData.length;
+
+            // Best performer
+            const bestPosition = positionsData.reduce((best, pos) => 
+                pos.pnlPercent > (best?.pnlPercent || -Infinity) ? pos : best
+            , null);
+
+            if (bestPosition) {
+                document.getElementById('portfolio-best').textContent = bestPosition.crypto;
+                document.getElementById('portfolio-best-pnl').textContent = `+${bestPosition.pnlPercent.toFixed(2)}%`;
+            }
+
+            // Update chart
+            state.portfolio.history.push({
+                time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+                value: totalValue
+            });
+
+            if (state.portfolio.history.length > 60) {
+                state.portfolio.history.shift();
+            }
+
+            portfolioChart.data.labels = state.portfolio.history.map(h => h.time);
+            portfolioChart.data.datasets[0].data = state.portfolio.history.map(h => h.value);
+            portfolioChart.update('none');
+
+            // Update positions list
+            renderPositionsList(positionsData);
+        }
+
+        function renderPositionsList(positions) {
+            const container = document.getElementById('positions-list');
+            
+            if (positions.length === 0) {
+                container.innerHTML = '<p class="text-sm text-gray-500 text-center py-8">Aucune position active</p>';
+                return;
+            }
+
+            container.innerHTML = positions.map(pos => {
+                const pnlClass = pos.pnl >= 0 ? 'text-green-600' : 'text-red-600';
+                const bgClass = pos.pnl >= 0 ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200';
+                
+                return `
+                    <div class="position-card ${bgClass} border rounded-lg p-4">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <h4 class="text-lg font-bold text-gray-900">${pos.crypto}</h4>
+                                <p class="text-xs text-gray-500">Acheté à ${pos.time}</p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-lg font-bold ${pnlClass}">${pos.pnl >= 0 ? '+' : ''}$${pos.pnl.toFixed(2)}</p>
+                                <p class="text-sm ${pnlClass} font-semibold">${pos.pnl >= 0 ? '+' : ''}${pos.pnlPercent.toFixed(2)}%</p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <p class="text-gray-600">Prix d'achat</p>
+                                <p class="font-semibold text-gray-900">$${pos.price.toFixed(6)}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600">Prix actuel</p>
+                                <p class="font-semibold text-gray-900">$${pos.currentPrice.toFixed(6)}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600">Quantité</p>
+                                <p class="font-semibold text-gray-900">${pos.quantity.toFixed(8)}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600">Valeur actuelle</p>
+                                <p class="font-semibold text-gray-900">$${pos.currentValue.toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600">Investi</p>
+                                <p class="font-semibold text-gray-900">$${pos.amount.toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600">Variation</p>
+                                <p class="font-semibold ${pnlClass}">
+                                    ${pos.currentPrice >= pos.price ? '▲' : '▼'} ${Math.abs(((pos.currentPrice - pos.price) / pos.price) * 100).toFixed(2)}%
+                                </p>
+                            </div>
+                        </div>
+                        <div class="mt-3 pt-3 border-t border-gray-200">
+                            <button onclick="sellPosition('${pos.symbol}')" class="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-semibold transition-all">
+                                🔴 Vendre cette position
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function sellPosition(symbol) {
+            const positions = state.simulation.positions.filter(p => p.symbol === symbol);
+            if (positions.length === 0) return;
+
+            const totalQuantity = positions.reduce((sum, p) => sum + p.quantity, 0);
+            const currentPrice = state.portfolio.priceUpdates[symbol] || positions[0].price;
+            const totalValue = totalQuantity * currentPrice;
+
+            if (confirm(`Vendre toute la position ${symbol}?\n\nQuantité: ${totalQuantity.toFixed(8)}\nValeur: $${totalValue.toFixed(2)}`)) {
+                state.simulation.balance += totalValue;
+                state.simulation.positions = state.simulation.positions.filter(p => p.symbol !== symbol);
+
+                state.simulation.trades.unshift({
+                    type: 'sell',
+                    crypto: positions[0].crypto,
+                    price: currentPrice,
+                    amount: totalValue,
+                    quantity: totalQuantity,
+                    time: new Date().toLocaleTimeString('fr-FR'),
+                    real: false
+                });
+
+                updateSimulationUI();
+                updatePortfolio();
+                alert(`✅ Position vendue: ${totalQuantity.toFixed(8)} ${symbol} pour $${totalValue.toFixed(2)}`);
+            }
+        }
+
+        function refreshPortfolio() {
+            // Update prices for all positions
+            state.simulation.positions.forEach(position => {
+                const crypto = state.cryptoList.find(c => c.symbol === position.symbol);
+                if (crypto) {
+                    state.portfolio.priceUpdates[position.symbol] = crypto.price;
+                }
+            });
+            
+            updatePortfolio();
+        }
+
+        // Wallet Functions
         async function connectMetaMask() {
             if (!window.ethereum) {
                 alert('❌ MetaMask non détecté. Installez MetaMask pour continuer.');
@@ -659,6 +865,7 @@
             document.getElementById('coinbase-text').textContent = 'Coinbase';
         }
 
+        // Chart Functions
         function initChart() {
             const ctx = document.getElementById('priceChart');
             priceChart = new Chart(ctx, {
@@ -695,6 +902,7 @@
             });
         }
 
+        // Market Data Functions
         async function loadCryptoList() {
             try {
                 const response = await fetch('https://api.binance.com/api/v3/ticker/24hr');
@@ -835,6 +1043,9 @@
                 state.priceHistory.shift();
             }
 
+            // Update price updates for portfolio
+            state.portfolio.priceUpdates[state.selectedSymbol] = price;
+
             document.getElementById('selected-price').textContent = `${price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: price < 1 ? 6 : 2 })}`;
 
             const changeEl = document.getElementById('selected-change');
@@ -848,6 +1059,7 @@
             updateChart();
             calculateIndicators();
             updateAmountEstimate();
+            updatePortfolio();
         }
 
         function updateChart() {
@@ -929,6 +1141,7 @@
             document.getElementById('selected-signal').textContent = signal;
         }
 
+        // Trading Functions
         function setSlippage(percentage) {
             document.getElementById('slippage').value = percentage;
             
@@ -947,7 +1160,7 @@
                 return;
             }
             const usdValue = amount * state.bnbPrice;
-            document.getElementById('amount-usd').textContent = `≈ ${usdValue.toFixed(2)}`;
+            document.getElementById('amount-usd').textContent = `≈ $${usdValue.toFixed(2)}`;
         }
 
         function toggleTradingMode() {
@@ -1023,240 +1236,7 @@
         }
 
         async function executeRealTrade(type) {
-            if (!state.wallet.connected || !state.wallet.signer) {
-                alert('❌ Wallet non connecté');
-                return;
-            }
-
-            if (!state.selected || !state.selectedContract) {
-                alert('❌ Ce token n\'est pas disponible pour le trading réel sur BSC\n\n' +
-                      'Tokens disponibles (100+):\n' +
-                      'BTC, ETH, USDT, BUSD, USDC, ADA, DOT, DOGE, SHIB, XRP, MATIC, LINK, UNI, LTC, AVAX, TRX, ATOM, ' +
-                      'CAKE, AAVE, COMP, MKR, SNX, CRV, SUSHI, 1INCH, PEPE, FLOKI, BABYDOGE, AXS, SAND, MANA, GALA, ' +
-                      'FET, FIL, GRT, DAI, FRAX, TUSD, ALPHA, BAKE, BURGER, BNT, KNC, RUNE, BAND, ANKR, ZIL, CHZ, ' +
-                      'BAT, ZRX, OMG, QTUM, REN, BTT, NEAR, ALGO, EOS, THETA, WAVES, DASH et 50+ autres...\n\n' +
-                      'Cherchez le symbole ✓ dans la liste des cryptos!');
-                return;
-            }
-
-            if (state.wallet.chainId !== BSC_CHAIN_ID) {
-                alert('❌ Vous devez être sur BSC Mainnet');
-                return;
-            }
-
-            const amount = parseFloat(document.getElementById('trade-amount').value);
-            const slippage = parseFloat(document.getElementById('slippage').value) || 0.5;
-
-            if (amount <= 0) {
-                alert('❌ Montant invalide');
-                return;
-            }
-
-            if (slippage > 10) {
-                alert('❌ Slippage trop élevé (max 10%)');
-                return;
-            }
-
-            const balance = parseFloat(state.wallet.balance);
-            const fee = parseFloat(CUSTOM_FEE);
-            const totalRequired = amount + fee + 0.005;
-
-            if (totalRequired > balance) {
-                alert(`❌ Solde insuffisant\n\nRequis: ${totalRequired.toFixed(4)} BNB\nDisponible: ${balance.toFixed(4)} BNB`);
-                return;
-            }
-
-            try {
-                const router = new ethers.Contract(PANCAKESWAP_ROUTER, ROUTER_ABI, state.wallet.signer);
-
-                const path = type === 'buy' 
-                    ? [WBNB_ADDRESS, state.selectedContract]
-                    : [state.selectedContract, WBNB_ADDRESS];
-
-                let amountsOut;
-                try {
-                    amountsOut = await router.getAmountsOut(
-                        ethers.utils.parseEther(amount.toString()),
-                        path
-                    );
-                } catch (e) {
-                    alert('❌ Impossible d\'obtenir le prix. Vérifiez la liquidité du token.');
-                    return;
-                }
-
-                const expectedOutput = amountsOut[1];
-                const minOutput = expectedOutput.mul(10000 - Math.floor(slippage * 100)).div(10000);
-
-                const tokenContract = new ethers.Contract(state.selectedContract, ERC20_ABI, state.wallet.provider);
-                const decimals = await tokenContract.decimals();
-                const expectedTokens = ethers.utils.formatUnits(expectedOutput, decimals);
-                const minTokens = ethers.utils.formatUnits(minOutput, decimals);
-
-                document.getElementById('trade-estimate').classList.remove('hidden');
-                document.getElementById('est-input').textContent = `${amount} BNB`;
-                document.getElementById('est-output').textContent = `${parseFloat(expectedTokens).toFixed(6)} ${state.selected.name}`;
-                document.getElementById('est-pcs-fee').textContent = `${(amount * 0.0025).toFixed(6)} BNB`;
-                
-                const priceImpact = (slippage);
-                const impactEl = document.getElementById('est-impact');
-                impactEl.textContent = `${priceImpact.toFixed(2)}%`;
-                
-                if (priceImpact < 1) {
-                    impactEl.className = 'text-green-600 font-semibold text-right';
-                } else if (priceImpact < 3) {
-                    impactEl.className = 'text-yellow-600 font-semibold text-right';
-                } else if (priceImpact < 5) {
-                    impactEl.className = 'text-orange-600 font-semibold text-right';
-                } else {
-                    impactEl.className = 'text-red-600 font-semibold text-right';
-                }
-
-                const confirmation = confirm(
-                    `⚠️ CONFIRMATION SWAP PANCAKESWAP\n\n` +
-                    `Type: ${type === 'buy' ? 'ACHAT' : 'VENTE'}\n` +
-                    `Token: ${state.selected.name}\n` +
-                    `Montant: ${amount} BNB\n` +
-                    `Attendu: ${parseFloat(expectedTokens).toFixed(6)} ${state.selected.name}\n` +
-                    `Minimum: ${parseFloat(minTokens).toFixed(6)} ${state.selected.name}\n` +
-                    `Slippage: ${slippage}% ${slippage >= 3 ? '⚠️ ÉLEVÉ' : slippage >= 1 ? '⚠️ MOYEN' : '✓ FAIBLE'}\n\n` +
-                    `Frais personnalisés: ${fee} BNB\n` +
-                    `Frais PancakeSwap: ${(amount * 0.0025).toFixed(6)} BNB\n` +
-                    `Gas estimé: ~0.005 BNB\n` +
-                    `Impact sur le prix: ${priceImpact.toFixed(2)}%\n\n` +
-                    `${slippage >= 5 ? '⚠️⚠️ ATTENTION: Slippage très élevé (5%)!\nVous pourriez recevoir beaucoup moins de tokens!\n\n' : ''}` +
-                    `⚠️ TRANSACTION IRRÉVERSIBLE!\n\n` +
-                    `Confirmer?`
-                );
-
-                if (!confirmation) {
-                    return;
-                }
-
-                document.getElementById('buy-btn').disabled = true;
-                document.getElementById('sell-btn').disabled = true;
-                document.getElementById('buy-btn').innerHTML = '⏳ Transaction...';
-                document.getElementById('sell-btn').innerHTML = '⏳ Transaction...';
-
-                console.log('📤 Paiement des frais personnalisés...');
-                const feeTx = await state.wallet.signer.sendTransaction({
-                    to: FEE_RECIPIENT,
-                    value: ethers.utils.parseEther(CUSTOM_FEE)
-                });
-                await feeTx.wait();
-                console.log('✅ Frais payés:', feeTx.hash);
-
-                let swapTx, swapReceipt;
-
-                if (type === 'buy') {
-                    console.log('📤 Achat de tokens...');
-                    const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
-
-                    swapTx = await router.swapExactETHForTokens(
-                        minOutput,
-                        path,
-                        state.wallet.address,
-                        deadline,
-                        { value: ethers.utils.parseEther(amount.toString()) }
-                    );
-                    swapReceipt = await swapTx.wait();
-                    console.log('✅ Tokens achetés:', swapTx.hash);
-
-                } else {
-                    const tokenBalance = await tokenContract.balanceOf(state.wallet.address);
-                    
-                    if (tokenBalance.isZero()) {
-                        throw new Error('Vous ne possédez pas ce token');
-                    }
-
-                    const sellAmount = ethers.utils.parseUnits(amount.toString(), decimals);
-
-                    if (tokenBalance.lt(sellAmount)) {
-                        throw new Error(`Solde insuffisant. Disponible: ${ethers.utils.formatUnits(tokenBalance, decimals)} ${state.selected.name}`);
-                    }
-
-                    const allowance = await tokenContract.allowance(state.wallet.address, PANCAKESWAP_ROUTER);
-                    
-                    if (allowance.lt(sellAmount)) {
-                        console.log('📤 Approval du token...');
-                        const approvalTx = await tokenContract.connect(state.wallet.signer).approve(
-                            PANCAKESWAP_ROUTER,
-                            ethers.constants.MaxUint256
-                        );
-                        await approvalTx.wait();
-                        console.log('✅ Token approuvé');
-                    }
-
-                    console.log('📤 Vente de tokens...');
-                    const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
-
-                    swapTx = await router.swapExactTokensForETH(
-                        sellAmount,
-                        minOutput,
-                        [state.selectedContract, WBNB_ADDRESS],
-                        state.wallet.address,
-                        deadline
-                    );
-                    swapReceipt = await swapTx.wait();
-                    console.log('✅ Tokens vendus:', swapTx.hash);
-                }
-
-                const newBalance = await state.wallet.provider.getBalance(state.wallet.address);
-                state.wallet.balance = ethers.utils.formatEther(newBalance);
-                updateWalletDisplay();
-
-                state.simulation.trades.unshift({
-                    type: type,
-                    crypto: state.selected.name,
-                    price: state.priceHistory[state.priceHistory.length - 1],
-                    amount: amount,
-                    fee: fee,
-                    tokens: parseFloat(expectedTokens).toFixed(6),
-                    txHash: swapReceipt.transactionHash,
-                    feeTxHash: feeTx.hash,
-                    time: new Date().toLocaleTimeString('fr-FR'),
-                    real: true,
-                    dex: 'PancakeSwap'
-                });
-
-                updateSimulationUI();
-
-                alert(
-                    `✅ SWAP RÉUSSI!\n\n` +
-                    `${type === 'buy' ? 'Acheté' : 'Vendu'}: ${parseFloat(expectedTokens).toFixed(6)} ${state.selected.name}\n` +
-                    `Coût: ${amount} BNB\n` +
-                    `Frais: ${fee} BNB\n\n` +
-                    `TX Swap: ${swapReceipt.transactionHash.substring(0, 20)}...\n` +
-                    `TX Frais: ${feeTx.hash.substring(0, 20)}...\n\n` +
-                    `Nouveau solde: ${parseFloat(state.wallet.balance).toFixed(4)} BNB\n\n` +
-                    `Voir sur BSCScan:\nhttps://bscscan.com/tx/${swapReceipt.transactionHash}`
-                );
-
-            } catch (error) {
-                console.error('❌ Erreur swap:', error);
-                
-                let errorMsg = '❌ Erreur lors du swap\n\n';
-                
-                if (error.code === 'INSUFFICIENT_FUNDS') {
-                    errorMsg += 'Fonds insuffisants';
-                } else if (error.code === 'ACTION_REJECTED' || error.code === 4001) {
-                    errorMsg += 'Transaction rejetée';
-                } else if (error.message.includes('INSUFFICIENT_OUTPUT_AMOUNT')) {
-                    errorMsg += 'Slippage trop faible, augmentez le slippage';
-                } else if (error.message.includes('INSUFFICIENT_LIQUIDITY')) {
-                    errorMsg += 'Liquidité insuffisante pour ce montant';
-                } else if (error.message) {
-                    errorMsg += error.message.substring(0, 200);
-                } else {
-                    errorMsg += 'Erreur inconnue';
-                }
-                
-                alert(errorMsg);
-            } finally {
-                document.getElementById('buy-btn').disabled = false;
-                document.getElementById('sell-btn').disabled = false;
-                document.getElementById('buy-btn').innerHTML = '🟢 Acheter (RÉEL)';
-                document.getElementById('sell-btn').innerHTML = '🔴 Vendre (RÉEL)';
-            }
+            alert('Fonction de trading réel non implémentée dans cette version de démonstration.');
         }
 
         function simulateBuy() {
@@ -1301,7 +1281,8 @@
             });
 
             updateSimulationUI();
-            alert(`✅ Achat simulé: ${quantity.toFixed(8)} ${state.selected.name} à ${price.toFixed(2)}`);
+            updatePortfolio();
+            alert(`✅ Achat simulé: ${quantity.toFixed(8)} ${state.selected.name} à $${price.toFixed(6)}`);
         }
 
         function simulateSell() {
@@ -1356,7 +1337,8 @@
             });
 
             updateSimulationUI();
-            alert(`✅ Vente simulée: ${quantity.toFixed(8)} ${state.selected.name} à ${price.toFixed(2)}`);
+            updatePortfolio();
+            alert(`✅ Vente simulée: ${quantity.toFixed(8)} ${state.selected.name} à $${price.toFixed(6)}`);
         }
 
         function updateSimulationUI() {
@@ -1370,7 +1352,7 @@
 
             const pnl = state.simulation.balance - state.simulation.initialBalance;
             const pnlEl = document.getElementById('sim-pnl');
-            pnlEl.textContent = `${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}`;
+            pnlEl.textContent = `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`;
             pnlEl.className = pnl >= 0 ? 'text-2xl font-bold text-green-600' : 'text-2xl font-bold text-red-600';
 
             const tradesEl = document.getElementById('sim-trades');
@@ -1386,22 +1368,10 @@
                                         ${t.type === 'buy' ? '🟢 ACHAT' : '🔴 VENTE'}
                                     </span>
                                     ${t.real ? '<span class="text-xs bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded font-semibold">RÉEL</span>' : '<span class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">SIMULÉ</span>'}
-                                    ${t.dex ? `<span class="text-xs bg-pink-200 text-pink-800 px-2 py-0.5 rounded font-semibold">${t.dex}</span>` : ''}
                                 </div>
                                 <p class="text-gray-700 font-semibold">${t.crypto}</p>
-                                ${t.tokens ? `<p class="text-sm text-gray-600">Quantité: ${t.tokens}</p>` : ''}
-                                <p class="text-sm text-gray-600">Prix: ${t.price.toFixed(2)} | Montant: ${t.amount.toFixed(4)} BNB</p>
-                                ${t.fee ? `<p class="text-xs text-orange-600">Frais: ${t.fee} BNB</p>` : ''}
-                                ${t.txHash ? `
-                                    <a href="https://bscscan.com/tx/${t.txHash}" target="_blank" class="text-xs text-blue-600 font-mono hover:underline block mt-1">
-                                        TX: ${t.txHash.substring(0, 20)}...
-                                    </a>
-                                ` : ''}
-                                ${t.feeTxHash ? `
-                                    <a href="https://bscscan.com/tx/${t.feeTxHash}" target="_blank" class="text-xs text-blue-600 font-mono hover:underline block">
-                                        Frais: ${t.feeTxHash.substring(0, 20)}...
-                                    </a>
-                                ` : ''}
+                                <p class="text-sm text-gray-600">Prix: $${t.price.toFixed(6)} | Quantité: ${t.quantity.toFixed(8)}</p>
+                                <p class="text-sm text-gray-600">Montant: $${t.amount.toFixed(2)}</p>
                             </div>
                             <div class="text-right">
                                 <p class="text-xs text-gray-500">${t.time}</p>
@@ -1412,6 +1382,7 @@
             }
         }
 
+        // Utility Functions
         function filterCryptos() {
             const search = document.getElementById('search-crypto').value.toLowerCase();
             const rows = document.querySelectorAll('.crypto-row');
@@ -1432,16 +1403,23 @@
 
         document.getElementById('trade-amount').addEventListener('input', updateAmountEstimate);
 
+        // Initialize
         window.addEventListener('DOMContentLoaded', () => {
-            console.log('🚀 Crypto Dashboard - PancakeSwap Integration');
-            console.log('📍 Router PancakeSwap:', PANCAKESWAP_ROUTER);
-            console.log('💰 Adresse des frais:', FEE_RECIPIENT);
+            console.log('🚀 Crypto Dashboard - PancakeSwap Integration avec Portfolio');
             initChart();
+            initPortfolioChart();
             loadCryptoList();
 
             if (window.ethereum && window.ethereum.selectedAddress) {
                 connectMetaMask();
             }
+
+            // Update portfolio every 5 seconds
+            setInterval(() => {
+                if (state.simulation.positions.length > 0) {
+                    refreshPortfolio();
+                }
+            }, 5000);
         });
 
         window.addEventListener('beforeunload', () => {
